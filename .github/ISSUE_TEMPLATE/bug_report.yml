@@ -1,0 +1,60 @@
+name: Bug Report
+description: Report a failure, routing loop, or parsing error in the agent graph
+title: "[BUG] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue! To help debug the state machine or LLM output, please provide as much detail as possible.
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "The review_spec node failed to parse the Pydantic schema and triggered an infinite loop..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce / Input Prompt
+      description: Provide the exact input text or `AgentState` payload that triggered the failure.
+      placeholder: |
+        1. Passed the following raw_input: "..."
+        2. Execution reached node 'X'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect the graph to do? (e.g., route to END, output a specific JSON structure)
+    validations:
+      required: true
+  - type: textarea
+    id: logs-and-traces
+    attributes:
+      label: Graph State & Execution Traces
+      description: Paste the terminal error, the LangGraph state snapshot at the time of failure, or a LangSmith trace link.
+      render: shell
+  - type: input
+    id: model-version
+    attributes:
+      label: LLM / Model Used
+      description: Which model were you running when this occurred?
+      placeholder: "e.g., gpt-4o, claude-3-5-sonnet"
+  - type: input
+    id: env-details
+    attributes:
+      label: Environment Details
+      description: Python version, LangGraph/LangChain package versions, and OS.
+      placeholder: "Python 3.11, langgraph 0.1.X"
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I have removed any sensitive API keys or credentials from the logs provided above.
+          required: true

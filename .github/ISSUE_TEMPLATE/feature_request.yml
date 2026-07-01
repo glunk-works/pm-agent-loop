@@ -1,0 +1,46 @@
+name: Feature Request
+description: Suggest a new capability or behavior for the AI PM Agent
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the agent! Please fill out the details below.
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem Statement
+      description: Clear and concise description of the limitation or problem.
+      placeholder: "When the agent reviews highly technical requirements, it currently..."
+    validations:
+      required: true
+  - type: textarea
+    id: desired-behavior
+    attributes:
+      label: Desired Behavior / Capability
+      description: Describe what you want the agent to achieve.
+      placeholder: "I want the Reviewer node to specifically enforce..."
+    validations:
+      required: true
+  - type: textarea
+    id: architecture-impact
+    attributes:
+      label: Proposed Graph Architecture Adjustments
+      description: How should this feature impact the state machine? (State keys, new nodes, prompt changes, routing)
+    validations:
+      required: false
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example Input & Expected Output Specs
+      description: Provide a raw requirement snippet and the ideal final optimized spec.
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I have searched existing issues to ensure this feature hasn't already been requested.
+          required: true
