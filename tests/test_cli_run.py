@@ -110,6 +110,79 @@ def test_run_uses_llm_client_for_critic_revision(monkeypatch, tmp_path):
     assert written["acceptance_criteria"] == revised_text
 
 
+def test_run_provider_bedrock_uses_bedrock_llm_client(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    revised_text = "Marking a habit complete updates its streak count immediately."
+    mock_llm_client = MagicMock()
+    mock_llm_client.complete.return_value = LLMResponse(
+        text=revised_text, input_tokens=42, output_tokens=17
+    )
+    mock_llm_client_cls = MagicMock(return_value=mock_llm_client)
+    monkeypatch.setattr(cli_module, "BedrockLLMClient", mock_llm_client_cls)
+    monkeypatch.setattr(cli_module, "AnthropicLLMClient", MagicMock())
+
+    answers_with_weak_acceptance_criteria = list(_CLEAN_ANSWERS)
+    answers_with_weak_acceptance_criteria[7] = "Works."
+
+    output_path = tmp_path / "project_spec.json"
+    stdin = (
+        "\n".join(
+            [
+                *answers_with_weak_acceptance_criteria,
+                "a clearer description of what verifying it means",
+                "y",
+            ]
+        )
+        + "\n"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_module.app,
+        [
+            "run",
+            "--idea",
+            "test idea",
+            "--output",
+            str(output_path),
+            "--provider",
+            "bedrock",
+        ],
+        input=stdin,
+    )
+
+    assert result.exit_code == 0, result.output
+    mock_llm_client_cls.assert_called_once()
+    mock_llm_client.complete.assert_called_once()
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["acceptance_criteria"] == revised_text
+
+
+def test_run_unknown_provider_rejected(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli_module, "AnthropicLLMClient", MagicMock())
+    monkeypatch.setattr(cli_module, "BedrockLLMClient", MagicMock())
+
+    output_path = tmp_path / "project_spec.json"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_module.app,
+        [
+            "run",
+            "--idea",
+            "test idea",
+            "--output",
+            str(output_path),
+            "--provider",
+            "openai",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert not output_path.exists()
+
+
 def test_keyboard_interrupt_mid_interview_leaves_prior_file_unchanged(
     monkeypatch, tmp_path
 ):

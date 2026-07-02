@@ -5,6 +5,7 @@ import keyring
 import typer
 
 from pm_agent_loop.llm.adapters.anthropic import AnthropicLLMClient
+from pm_agent_loop.llm.adapters.bedrock import BedrockLLMClient
 from pm_agent_loop.llm.client import LLMClient
 from pm_agent_loop.logging_config import configure_logging
 from pm_agent_loop.orchestrator import (
@@ -162,6 +163,19 @@ def _validate_artifact_path(artifact_path: Path | None) -> Path | None:
     return artifact_path
 
 
+def _resolve_llm_client_cls(provider: str) -> type[LLMClient]:
+    providers: dict[str, type[LLMClient]] = {
+        "anthropic": AnthropicLLMClient,
+        "bedrock": BedrockLLMClient,
+    }
+    try:
+        return providers[provider]
+    except KeyError:
+        valid = ", ".join(sorted(providers))
+        msg = f"Unknown provider '{provider}'. Valid options: {valid}."
+        raise typer.BadParameter(msg, param_hint="--provider") from None
+
+
 def _validate_and_persist(spec: ProjectSpec, output: Path) -> None:
     validated_spec = ProjectSpec.model_validate(spec.model_dump())
     write_spec(validated_spec, output)
@@ -172,14 +186,21 @@ def run(
     idea: str | None = typer.Option(None, "--idea"),
     artifact_path: Path | None = typer.Option(None, "--artifact-path"),
     output: Path = typer.Option(Path("./docs/project_spec.json"), "--output"),
+    provider: str = typer.Option(
+        "anthropic",
+        "--provider",
+        help="LLM provider to use: 'anthropic' (direct API, keyring-backed key) "
+        "or 'bedrock' (AWS Bedrock, AWS credential chain).",
+    ),
 ) -> None:
     artifact_path = _validate_artifact_path(artifact_path)
+    llm_client_cls = _resolve_llm_client_cls(provider)
     input_type = pm.detect_input_type(idea, artifact_path)
     typer.echo(f"Detected input type: {input_type}")
 
     state = ChecklistState()
     token_tracker = TokenTracker()
-    pm_followup_fn = _make_pm_followup_fn(state, AnthropicLLMClient, token_tracker)
+    pm_followup_fn = _make_pm_followup_fn(state, llm_client_cls, token_tracker)
 
     try:
         _run_interview(state)

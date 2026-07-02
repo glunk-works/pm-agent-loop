@@ -5,7 +5,13 @@ from unittest.mock import patch
 import pytest
 import typer
 
-from pm_agent_loop.cli import _validate_and_persist, _validate_artifact_path
+from pm_agent_loop.cli import (
+    _resolve_llm_client_cls,
+    _validate_and_persist,
+    _validate_artifact_path,
+)
+from pm_agent_loop.llm.adapters.anthropic import AnthropicLLMClient
+from pm_agent_loop.llm.adapters.bedrock import BedrockLLMClient
 from pm_agent_loop.schema.project_spec import ProjectSpec
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "example_project_spec.json"
@@ -23,6 +29,19 @@ def test_validate_artifact_path_rejects_symlink(tmp_path, monkeypatch):
 
     with pytest.raises(typer.BadParameter):
         _validate_artifact_path(fake_link)
+
+
+def test_resolve_llm_client_cls_returns_anthropic_by_default():
+    assert _resolve_llm_client_cls("anthropic") is AnthropicLLMClient
+
+
+def test_resolve_llm_client_cls_returns_bedrock():
+    assert _resolve_llm_client_cls("bedrock") is BedrockLLMClient
+
+
+def test_resolve_llm_client_cls_rejects_unknown_provider():
+    with pytest.raises(typer.BadParameter):
+        _resolve_llm_client_cls("openai")
 
 
 def test_write_spec_skipped_when_final_validation_raises(tmp_path):
