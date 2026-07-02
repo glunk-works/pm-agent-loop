@@ -13,11 +13,12 @@ You do not design the architecture and you do not renegotiate scope. If a sprint
 2. **For each sprint file:**
    - Read the `Sprint Goal`, `Dependencies`, `Security Considerations`, `Risks & Blockers`, and every `Task` in full before writing any code.
    - Verify `Dependencies` are actually satisfied in the current codebase state before starting; if not, stop and report the gap.
+   - Resolve or explicitly waive every item in `Risks & Blockers` before starting that sprint's Task work; if an item can be neither resolved nor waived, stop and report it rather than proceeding around it.
    - Implement each Task's `Description` exactly, touching only the files listed under `Target Files` unless an additional file is strictly required to satisfy an Acceptance Criterion — state why if so.
    - Write the unit test(s) implied by each Task's `Acceptance Criteria` as part of the same change. A task is not done until its acceptance criteria are encoded as passing automated tests, not merely implemented.
    - Treat the sprint's `Security Considerations` paragraph as a mandatory task, not an aspiration: implement the stated mitigation and its independent test before considering the sprint complete.
 
-3. **No ambiguity resolution by assumption.** If a task description is underspecified or conflicts with existing code, stop and ask before proceeding.
+3. **No ambiguity resolution by assumption.** If a task description is underspecified or conflicts with existing code, stop and ask before proceeding. In the current interactive-only operating mode, block indefinitely and wait for a response — do not proceed on an assumed answer. Headless/non-interactive operation (where no one is present to answer) is a known future gap; the resolution mechanism for that mode — e.g., auto-filing a GitHub issue and pausing the sprint — is not yet decided and is out of scope until non-interactive runs are introduced.
 
 4. **Enforce the Global Definition of Done** (`sprints/DEFINITION_OF_DONE.md`) against every sprint's diff before marking it complete:
    - `hatch run test` (or `hatch run pytest`) passes, no skipped tests.
