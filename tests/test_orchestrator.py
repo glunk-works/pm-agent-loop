@@ -4,8 +4,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pm_agent_loop.llm.client import LLMResponse
 from pm_agent_loop.orchestrator import (
     RevisionCapReached,
+    TokenTracker,
     require_signoff,
     run_revision_loop,
 )
@@ -49,6 +51,33 @@ def test_run_revision_loop_returns_resolved_spec_after_two_calls():
 
     assert result is resolved_spec
     assert pm_followup_fn.call_count == 2
+
+
+def test_run_revision_loop_accumulates_token_usage_via_tracker():
+    broken_spec = _spec_with_blank_security()
+    resolved_spec = _valid_spec()
+    llm_client = MagicMock()
+    llm_client.complete.side_effect = [
+        LLMResponse(text="a", input_tokens=10, output_tokens=20),
+        LLMResponse(text="b", input_tokens=15, output_tokens=25),
+        LLMResponse(text="c", input_tokens=5, output_tokens=5),
+    ]
+    tracker = TokenTracker()
+    specs = iter([broken_spec, broken_spec, resolved_spec])
+
+    def pm_followup_fn(findings):
+        del findings
+        response = llm_client.complete(
+            system_prompt="revise", messages=[], model="claude-haiku-4-5"
+        )
+        tracker.add(response.input_tokens, response.output_tokens)
+        return next(specs)
+
+    result = run_revision_loop(broken_spec, pm_followup_fn, max_cycles=4)
+
+    assert result is resolved_spec
+    assert tracker.total_input_tokens == 10 + 15 + 5
+    assert tracker.total_output_tokens == 20 + 25 + 5
 
 
 def test_write_spec_skipped_when_signoff_declined():

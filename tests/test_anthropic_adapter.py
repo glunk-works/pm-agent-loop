@@ -17,9 +17,10 @@ def test_complete_returns_mocked_response_text(capsys, caplog):
     ):
         mock_content_block = MagicMock()
         mock_content_block.text = "Hello from the mock."
+        mock_usage = MagicMock(input_tokens=12, output_tokens=34)
         mock_client = MagicMock()
         mock_client.messages.create.return_value = MagicMock(
-            content=[mock_content_block]
+            content=[mock_content_block], usage=mock_usage
         )
         mock_anthropic_cls.return_value = mock_client
 
@@ -30,7 +31,9 @@ def test_complete_returns_mocked_response_text(capsys, caplog):
             model="claude-haiku-4-5",
         )
 
-    assert result == "Hello from the mock."
+    assert result.text == "Hello from the mock."
+    assert result.input_tokens == 12
+    assert result.output_tokens == 34
     captured = capsys.readouterr()
     assert DUMMY_KEY not in captured.out
     assert DUMMY_KEY not in captured.err
