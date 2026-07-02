@@ -155,6 +155,43 @@ def _make_pm_followup_fn(
     return _pm_followup
 
 
+def _prefill_from_artifact(
+    state: ChecklistState,
+    artifact_path: Path,
+    llm_client_factory: Callable[[], LLMClient],
+    token_tracker: TokenTracker,
+) -> None:
+    artifact_content = artifact_path.read_text(encoding="utf-8")
+    llm_client = llm_client_factory()
+    response = llm_client.complete(
+        system_prompt=pm.build_extraction_system_prompt(state.unanswered_fields()),
+        messages=[
+            {"role": "user", "content": pm.wrap_untrusted_artifact(artifact_content)}
+        ],
+        model=_DRAFT_MODEL,
+    )
+    token_tracker.add(response.input_tokens, response.output_tokens)
+    candidates = pm.parse_extraction_response(response.text, state.unanswered_fields())
+
+    for field_name, extracted_value in candidates.items():
+        typer.echo(f"From your artifact, {field_name.replace('_', ' ')}:")
+        typer.echo(f'  "{extracted_value}"')
+        correction = typer.prompt(
+            "Press Enter to accept, or type a correction",
+            default="",
+            show_default=False,
+        )
+        if correction.strip() == "":
+            state.record_answer(field_name, extracted_value)
+            continue
+
+        answer = correction
+        while pm.needs_clarification(answer):
+            followup = pm.build_clarifying_followup(field_name, answer)
+            answer = typer.prompt(followup)
+        state.record_answer(field_name, answer)
+
+
 def _validate_artifact_path(artifact_path: Path | None) -> Path | None:
     if artifact_path is not None and artifact_path.is_symlink():
         raise typer.BadParameter(
@@ -203,6 +240,8 @@ def run(
     pm_followup_fn = _make_pm_followup_fn(state, llm_client_cls, token_tracker)
 
     try:
+        if input_type == "existing_artifact" and artifact_path is not None:
+            _prefill_from_artifact(state, artifact_path, llm_client_cls, token_tracker)
         _run_interview(state)
         initial_spec = _build_initial_spec(state)
         final_spec = run_revision_loop(initial_spec, pm_followup_fn)
