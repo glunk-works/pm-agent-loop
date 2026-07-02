@@ -1,0 +1,27 @@
+{
+  "spec_version": 1,
+  "problem_statement": "The team tracks on-call handoffs in a shared doc, which drifts out of date and causes missed handoffs.",
+  "purpose_and_goals": "Provide a small CLI that records and displays the current on-call owner and handoff history.",
+  "target_users": "Engineers on the on-call rotation for the platform team.",
+  "in_scope": "Recording a handoff, showing the current owner, listing handoff history.",
+  "out_of_scope": "Paging/alerting integration; scheduling future rotations.",
+  "functional_requirements": "CLI command to set the current owner; CLI command to show the current owner and last 10 handoffs.",
+  "integration_context": "Runs locally on each engineer's machine; reads/writes a local JSON file, no server component.",
+  "acceptance_criteria": "Running the set-owner command updates the recorded owner and appends a handoff entry with a timestamp.",
+  "priority_ranking": "Must-have: set/show owner. Nice-to-have: handoff history listing.",
+  "timeline_and_cost_estimates": "Roughly one day of effort; no ongoing cost since it is a local-only tool.",
+  "risks_and_assumptions": "Assumes a single shared file is sufficient; no concurrent-write handling planned for v1.",
+  "security_and_risk_considerations": "No secrets or credentials handled; local file only, no elevated privileges required; single user/role, no access levels needed.",
+  "regulatory_and_compliance_constraints": "N/A",
+  "supply_chain_security_expectations": "Standard dependency scanning via existing repo tooling is sufficient; no additional artifact signing required.",
+  "cost_sensitivity": "Not a cost concern; no external services used.",
+  "open_questions_for_architect": "N/A",
+  "revision_history": [
+    {
+      "version": 1,
+      "trigger": "Initial draft from PM interview.",
+      "change": "Created the initial spec covering set/show owner and handoff history.",
+      "resolved_by": "human sign-off"
+    }
+  ]
+}

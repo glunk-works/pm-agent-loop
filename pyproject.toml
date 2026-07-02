@@ -20,7 +20,9 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
 
 ]
-dependencies = []
+dependencies = [
+    "pydantic>=2.9.0",
+]
 
 [project.urls]
 Documentation = "https://github.com/glunk-works/pm-agent-loop#readme"
