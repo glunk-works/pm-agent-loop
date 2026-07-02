@@ -69,6 +69,14 @@ filled in:
 pm-agent-loop run --artifact-path ./notes/habit-tracker-draft.md --output ./docs/project_spec.json
 ```
 
+With `--artifact-path`, the PM persona first sends the artifact's content to the
+configured LLM to extract candidate answers for whichever checklist fields it clearly
+and explicitly addresses. Each extracted answer is shown back to you individually —
+press Enter to accept it as-is, or type a correction (a vague correction, like "not
+sure", re-triggers the same clarifying follow-up used elsewhere in the interview).
+Nothing extracted from the artifact is recorded without this confirmation step, and
+any field the artifact doesn't address falls through to the normal interview below.
+
 The PM persona interviews you one question at a time until every required checklist
 field is answered or explicitly marked `N/A`. You can end the interview early at any
 point by typing `that's enough` or `generate the spec` — anything left unanswered is

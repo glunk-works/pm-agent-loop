@@ -110,6 +110,86 @@ def test_run_uses_llm_client_for_critic_revision(monkeypatch, tmp_path):
     assert written["acceptance_criteria"] == revised_text
 
 
+def test_run_artifact_path_prefills_answers_with_human_confirmation(
+    monkeypatch, tmp_path
+):
+    monkeypatch.chdir(tmp_path)
+    artifact_path = tmp_path / "requirements.md"
+    artifact_path.write_text("# Habit tracker notes\n...", encoding="utf-8")
+
+    extraction_json = json.dumps(
+        {
+            "problem_statement": _CLEAN_ANSWERS[0],
+            "purpose_and_goals": "a rough first draft of the goal",
+        }
+    )
+    mock_llm_client = MagicMock()
+    mock_llm_client.complete.return_value = LLMResponse(
+        text=extraction_json, input_tokens=10, output_tokens=5
+    )
+    monkeypatch.setattr(
+        cli_module, "AnthropicLLMClient", MagicMock(return_value=mock_llm_client)
+    )
+
+    stdin_lines = [
+        "",  # accept the extracted problem_statement as-is
+        _CLEAN_ANSWERS[1],  # correct the extracted purpose_and_goals
+        *_CLEAN_ANSWERS[2:],
+        "y",
+    ]
+    stdin = "\n".join(stdin_lines) + "\n"
+
+    output_path = tmp_path / "project_spec.json"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_module.app,
+        ["run", "--artifact-path", str(artifact_path), "--output", str(output_path)],
+        input=stdin,
+    )
+
+    assert result.exit_code == 0, result.output
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["problem_statement"] == _CLEAN_ANSWERS[0]
+    assert written["purpose_and_goals"] == _CLEAN_ANSWERS[1]
+
+
+def test_run_artifact_prefill_correction_reruns_needs_clarification(
+    monkeypatch, tmp_path
+):
+    monkeypatch.chdir(tmp_path)
+    artifact_path = tmp_path / "requirements.md"
+    artifact_path.write_text("# Habit tracker notes\n...", encoding="utf-8")
+
+    extraction_json = json.dumps({"problem_statement": "some extracted text"})
+    mock_llm_client = MagicMock()
+    mock_llm_client.complete.return_value = LLMResponse(
+        text=extraction_json, input_tokens=1, output_tokens=1
+    )
+    monkeypatch.setattr(
+        cli_module, "AnthropicLLMClient", MagicMock(return_value=mock_llm_client)
+    )
+
+    stdin_lines = [
+        "not sure",  # vague correction -> must re-trigger needs_clarification
+        _CLEAN_ANSWERS[0],  # clarified answer, accepted this time
+        *_CLEAN_ANSWERS[1:],
+        "y",
+    ]
+    stdin = "\n".join(stdin_lines) + "\n"
+
+    output_path = tmp_path / "project_spec.json"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_module.app,
+        ["run", "--artifact-path", str(artifact_path), "--output", str(output_path)],
+        input=stdin,
+    )
+
+    assert result.exit_code == 0, result.output
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["problem_statement"] == _CLEAN_ANSWERS[0]
+
+
 def test_run_provider_bedrock_uses_bedrock_llm_client(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     revised_text = "Marking a habit complete updates its streak count immediately."
