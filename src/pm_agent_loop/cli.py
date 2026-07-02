@@ -6,8 +6,10 @@ import typer
 
 from pm_agent_loop.llm.adapters.anthropic import AnthropicLLMClient
 from pm_agent_loop.llm.client import LLMClient
+from pm_agent_loop.logging_config import configure_logging
 from pm_agent_loop.orchestrator import (
     RevisionCapReached,
+    TokenTracker,
     require_signoff,
     run_revision_loop,
 )
@@ -23,6 +25,8 @@ _SERVICE_NAME = "pm-agent-loop"
 _KEY_USERNAME = "anthropic-api-key"
 _OVERRIDE_PHRASES = {"that's enough", "generate the spec"}
 _DRAFT_MODEL = "claude-haiku-4-5"
+
+_logger = configure_logging()
 
 
 @app.callback()
@@ -91,7 +95,9 @@ def _build_initial_spec(state: ChecklistState, spec_version: int = 1) -> Project
 
 
 def _make_pm_followup_fn(
-    state: ChecklistState, llm_client_factory: Callable[[], LLMClient]
+    state: ChecklistState,
+    llm_client_factory: Callable[[], LLMClient],
+    token_tracker: TokenTracker,
 ) -> Callable[[list[CriticFinding]], ProjectSpec]:
     history: list[RevisionHistoryEntry] = []
     version = {"n": 1}
@@ -107,7 +113,7 @@ def _make_pm_followup_fn(
             clarification = typer.prompt(
                 pm.build_clarifying_followup(finding.field, "")
             )
-            revised_text = llm_client.complete(
+            response = llm_client.complete(
                 system_prompt=(
                     "You are the PM persona. Rewrite the given project spec "
                     "field so it resolves the critic's finding, using the "
@@ -126,7 +132,8 @@ def _make_pm_followup_fn(
                 ],
                 model=_DRAFT_MODEL,
             )
-            state.record_answer(finding.field, revised_text)
+            token_tracker.add(response.input_tokens, response.output_tokens)
+            state.record_answer(finding.field, response.text)
 
         version["n"] += 1
         history.extend(
@@ -171,22 +178,33 @@ def run(
     typer.echo(f"Detected input type: {input_type}")
 
     state = ChecklistState()
-    _run_interview(state)
-
-    initial_spec = _build_initial_spec(state)
-    pm_followup_fn = _make_pm_followup_fn(state, AnthropicLLMClient)
+    token_tracker = TokenTracker()
+    pm_followup_fn = _make_pm_followup_fn(state, AnthropicLLMClient, token_tracker)
 
     try:
+        _run_interview(state)
+        initial_spec = _build_initial_spec(state)
         final_spec = run_revision_loop(initial_spec, pm_followup_fn)
     except RevisionCapReached as exc:
         typer.echo("Revision cap reached; escalating to you directly.")
         final_spec = exc.last_spec
+    except KeyboardInterrupt:
+        typer.echo("\nInterrupted. No spec was written; rerun to start over.")
+        raise typer.Exit(code=1) from None
+    except Exception as exc:
+        typer.echo(f"Unexpected error during the session: {exc}. No spec was written.")
+        raise typer.Exit(code=1) from exc
 
     if not require_signoff(final_spec, lambda: typer.confirm("Sign off on this spec?")):
         typer.echo("Sign-off declined; spec not written.")
         raise typer.Exit(code=1)
 
     _validate_and_persist(final_spec, output)
+    _logger.info(
+        "Session token usage: input=%d output=%d",
+        token_tracker.total_input_tokens,
+        token_tracker.total_output_tokens,
+    )
     typer.echo(f"Spec written to {output}")
 
 

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from typer.testing import CliRunner
 
 import pm_agent_loop.cli as cli_module
+from pm_agent_loop.llm.client import LLMResponse
 from pm_agent_loop.personas.pm import ChecklistState
 from pm_agent_loop.schema.project_spec import ProjectSpec
 
@@ -75,7 +76,9 @@ def test_run_uses_llm_client_for_critic_revision(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     revised_text = "Marking a habit complete updates its streak count immediately."
     mock_llm_client = MagicMock()
-    mock_llm_client.complete.return_value = revised_text
+    mock_llm_client.complete.return_value = LLMResponse(
+        text=revised_text, input_tokens=42, output_tokens=17
+    )
     mock_llm_client_cls = MagicMock(return_value=mock_llm_client)
     monkeypatch.setattr(cli_module, "AnthropicLLMClient", mock_llm_client_cls)
 
@@ -105,3 +108,65 @@ def test_run_uses_llm_client_for_critic_revision(monkeypatch, tmp_path):
     mock_llm_client.complete.assert_called_once()
     written = json.loads(output_path.read_text(encoding="utf-8"))
     assert written["acceptance_criteria"] == revised_text
+
+
+def test_keyboard_interrupt_mid_interview_leaves_prior_file_unchanged(
+    monkeypatch, tmp_path
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli_module, "AnthropicLLMClient", MagicMock())
+
+    output_path = tmp_path / "project_spec.json"
+    pre_existing_content = '{"marker": "pre-existing"}'
+    output_path.write_text(pre_existing_content, encoding="utf-8")
+
+    call_count = {"n": 0}
+
+    def fake_prompt(*args, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] == 2:
+            raise KeyboardInterrupt
+        return "some answer"
+
+    monkeypatch.setattr(cli_module.typer, "prompt", fake_prompt)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_module.app,
+        ["run", "--idea", "test idea", "--output", str(output_path)],
+    )
+
+    assert result.exit_code != 0
+    assert output_path.read_text(encoding="utf-8") == pre_existing_content
+
+
+def test_unexpected_llm_exception_leaves_no_spec_written(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    mock_llm_client = MagicMock()
+    mock_llm_client.complete.side_effect = RuntimeError("network is down")
+    monkeypatch.setattr(
+        cli_module, "AnthropicLLMClient", MagicMock(return_value=mock_llm_client)
+    )
+
+    answers_with_weak_acceptance_criteria = list(_CLEAN_ANSWERS)
+    answers_with_weak_acceptance_criteria[7] = "Works."
+    output_path = tmp_path / "project_spec.json"
+    stdin = (
+        "\n".join(
+            [
+                *answers_with_weak_acceptance_criteria,
+                "a clearer description of what verifying it means",
+            ]
+        )
+        + "\n"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_module.app,
+        ["run", "--idea", "test idea", "--output", str(output_path)],
+        input=stdin,
+    )
+
+    assert result.exit_code != 0
+    assert not output_path.exists()

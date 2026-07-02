@@ -1,7 +1,18 @@
+from dataclasses import dataclass
 from typing import Callable
 
 from pm_agent_loop.personas.critic import CriticFinding, review
 from pm_agent_loop.schema.project_spec import ProjectSpec
+
+
+@dataclass
+class TokenTracker:
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+
+    def add(self, input_tokens: int, output_tokens: int) -> None:
+        self.total_input_tokens += input_tokens
+        self.total_output_tokens += output_tokens
 
 
 class RevisionCapReached(Exception):

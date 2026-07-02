@@ -1,7 +1,7 @@
 import keyring
 from anthropic import Anthropic
 
-from pm_agent_loop.llm.client import LLMClient
+from pm_agent_loop.llm.client import LLMClient, LLMResponse
 
 _SERVICE_NAME = "pm-agent-loop"
 _KEY_USERNAME = "anthropic-api-key"
@@ -16,11 +16,17 @@ class AnthropicLLMClient(LLMClient):
             raise RuntimeError(msg)
         self._client = Anthropic(api_key=api_key)
 
-    def complete(self, system_prompt: str, messages: list[dict], model: str) -> str:
+    def complete(
+        self, system_prompt: str, messages: list[dict], model: str
+    ) -> LLMResponse:
         response = self._client.messages.create(
             model=model,
             max_tokens=_MAX_TOKENS,
             system=system_prompt,
             messages=messages,
         )
-        return response.content[0].text
+        return LLMResponse(
+            text=response.content[0].text,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
