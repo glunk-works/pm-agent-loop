@@ -35,6 +35,16 @@ def test_write_spec_then_overwrite_preserves_prior_version(tmp_path, monkeypatch
     assert read_spec(target).spec_version == 2
 
 
+def test_write_spec_creates_missing_parent_directories(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "docs" / "project_spec.json"
+
+    write_spec(_spec(1), target)
+
+    assert target.exists()
+    assert read_spec(target).spec_version == 1
+
+
 def test_read_spec_invalid_json_raises_validation_error(tmp_path):
     invalid_path = tmp_path / "invalid_spec.json"
     data = _load_fixture()
