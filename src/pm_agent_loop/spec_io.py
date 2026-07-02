@@ -20,6 +20,7 @@ def read_spec(path: Path) -> ProjectSpec:
 
 def write_spec(spec: ProjectSpec, path: Path) -> None:
     resolved = _validate_write_target(Path(path))
+    resolved.parent.mkdir(parents=True, exist_ok=True)
     if resolved.exists():
         existing = read_spec(resolved)
         backup_path = resolved.with_name(
