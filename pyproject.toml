@@ -32,6 +32,9 @@ Documentation = "https://github.com/glunk-works/pm-agent-loop#readme"
 Issues = "https://github.com/glunk-works/pm-agent-loop/issues"
 Source = "https://github.com/glunk-works/pm-agent-loop"
 
+[project.scripts]
+pm-agent-loop = "pm_agent_loop:app"
+
 [tool.hatch.version]
 path = "src/pm_agent_loop/__about__.py"
 
@@ -93,6 +96,12 @@ ignore = []
 # S101: `assert` is the idiomatic pytest mechanism for test assertions, not a
 # production safety risk when confined to the test suite.
 "tests/*" = ["S101"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Typer's documented CLI pattern requires calling typer.Option()/typer.Argument()
+# as parameter defaults so it can introspect them; this is not the mutable-default
+# footgun B008 otherwise guards against.
+extend-immutable-calls = ["typer.Option", "typer.Argument"]
 
 [tool.ruff.format]
 quote-style = "double"
