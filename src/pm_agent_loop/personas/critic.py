@@ -23,9 +23,11 @@ def _is_blank(value: str) -> bool:
 
 
 def check_internal_consistency(spec: ProjectSpec) -> list[CriticFinding]:
+    in_scope = spec.in_scope.strip()
     if (
-        spec.in_scope.strip()
-        and spec.in_scope.strip().lower() == spec.out_of_scope.strip().lower()
+        in_scope
+        and in_scope.upper() != "N/A"
+        and in_scope.lower() == spec.out_of_scope.strip().lower()
     ):
         return [
             CriticFinding(

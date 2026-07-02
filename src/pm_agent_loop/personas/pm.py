@@ -84,6 +84,11 @@ class ChecklistState:
         self._fields: dict[str, FieldStatus] = dict.fromkeys(
             CHECKLIST_FIELDS, FieldStatus.UNANSWERED
         )
+        self._answers: dict[str, str] = dict.fromkeys(CHECKLIST_FIELDS, "")
+        # revision_history is populated by the critic revision loop from
+        # structured RevisionHistoryEntry data, not asked of the human as a
+        # free-text interview question like the other 16 fields.
+        self._fields["revision_history"] = FieldStatus.ANSWERED
 
     def get_status(self, field_name: str) -> FieldStatus:
         return self._fields[field_name]
@@ -93,6 +98,23 @@ class ChecklistState:
             msg = f"Unknown checklist field: {field_name}"
             raise KeyError(msg)
         self._fields[field_name] = status
+
+    def record_answer(self, field_name: str, value: str) -> None:
+        if field_name not in self._fields:
+            msg = f"Unknown checklist field: {field_name}"
+            raise KeyError(msg)
+        self._answers[field_name] = value
+        self._fields[field_name] = (
+            FieldStatus.MARKED_NA
+            if value.strip().upper() == "N/A"
+            else FieldStatus.ANSWERED
+        )
+
+    def get_answer(self, field_name: str) -> str:
+        return self._answers[field_name]
+
+    def answers(self) -> dict[str, str]:
+        return dict(self._answers)
 
     def unanswered_fields(self) -> list[str]:
         return [
