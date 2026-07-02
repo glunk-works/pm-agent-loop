@@ -1,0 +1,139 @@
+{
+  "project": "pm-agent-loop",
+  "spec_version": 6,
+  "generated_by": "pm-persona-interview",
+  "date": "2026-07-01",
+  "problem_statement": "Ideas currently go straight from a human's head into implementation with no structured requirements-gathering step in between. There is no reusable mechanism for interviewing a human, drafting a complete requirements spec, having it critiqued for gaps/contradictions, and producing a versioned artifact that a downstream architect persona can act on without needing to go back to the human for basic clarifications.",
+  "purpose_and_goals": "Build a reusable 'PM persona' loop: a conversational requirements-gathering flow that (1) detects whether it was given a raw idea or an existing artifact to refine, (2) interviews the human to fill a required checklist of spec fields, (3) drafts a structured spec, (4) has a distinct critic persona review the draft for consistency/completeness/testability, (5) routes critic findings back to the PM for targeted follow-up questions (not just handed to the human), (6) gets explicit human sign-off, and (7) writes a versioned project_spec.json that a separate architect persona can build from without further clarifying questions.",
+  "target_users": {
+    "primary": "The repo owner (Jared), for personal/side projects",
+    "design_intent": "Built for personal use first, but intentionally generic/reusable — not hardcoded to any single project's domain or vocabulary, so other developers/teams could adopt it"
+  },
+  "trigger_and_input_handling": {
+    "supported_inputs": [
+      "A rough, unstructured one-line idea with near-zero existing context",
+      "An existing artifact (issue, doc, ticket, partial spec) that needs gaps filled and tightening"
+    ],
+    "behavior": "Persona auto-detects which case it's in and adapts its interview accordingly (starting from scratch vs. targeted gap-filling)"
+  },
+  "interview_behavior": {
+    "pacing": "One question at a time by default; may batch 2-3 short, clearly independent questions (e.g. simple yes/no fields) but never bundles questions whose answers depend on each other",
+    "handling_uncertain_answers": "If the human gives a vague, contradictory, or 'I don't know' answer, the persona does not just record it or silently drop it — it offers clarifying context, examples, or a tradeoff/impact explanation to help the human answer meaningfully before moving on",
+    "priority_and_estimates": "Persona infers a priority ranking (must-have vs. later/nice-to-have) and rough timeline/cost sizing from the conversation, then explicitly presents that inference back to the human for confirmation or correction — it never invents these from nothing, and never skips asking the human to confirm"
+  },
+  "stop_condition": {
+    "primary": "Persona tracks a checklist of required spec fields and drives toward full coverage (each field answered or explicitly marked N/A)",
+    "override": "The human can say 'that's enough' / 'generate the spec' at any point; persona will draft from whatever's been gathered so far and explicitly flags the resulting gaps rather than pretending they don't exist"
+  },
+  "required_spec_fields_checklist": [
+    "problem_statement",
+    "purpose_and_goals",
+    "target_users",
+    "in_scope",
+    "out_of_scope / non_goals",
+    "functional_requirements",
+    "integration_context (where/how it will run, what it integrates with, any constraints the human already knows about)",
+    "acceptance_criteria",
+    "priority_ranking (inferred, human-confirmed)",
+    "timeline_and_cost_estimates (inferred, human-confirmed)",
+    "risks_and_assumptions",
+    "security_and_risk_considerations (data sensitivity, secrets/credentials handling, threat/abuse considerations, what distinct access levels/roles are needed in plain terms, whether infrastructure should be defined as code)",
+    "regulatory_and_compliance_constraints (data residency requirements, PII/sensitive-data handling rules, any applicable compliance regimes the human is aware of, e.g. GDPR/HIPAA)",
+    "supply_chain_security_expectations (whether dependency scanning, artifact signing, or vulnerability management are expected/required for this project)",
+    "cost_sensitivity (whether compute/token cost is a hard constraint for this project or a non-issue, as stated by the human)",
+    "open_questions_for_architect (anything left unresolved or explicitly deferred)",
+    "revision_history (critic findings per round + how each was resolved)"
+  ],
+  "draft_and_review_loop": {
+    "roles": "Two distinct personas/perspectives: the PM (drafts, interviews) and a separate Critic (adversarial review — looking specifically for gaps, contradictions, untestable acceptance criteria) — not the same persona self-reviewing its own work",
+    "critic_checks": ["internal consistency (no contradictory requirements)", "completeness against the required fields checklist", "acceptance criteria are testable/verifiable", "security/risk considerations were explicitly addressed, not left blank — a spec cannot pass review with this field empty or skipped", "regulatory/compliance, supply chain security, and cost sensitivity fields were explicitly addressed (answered or explicitly marked N/A), not silently left blank"],
+    "on_findings": "Critic findings route back to the PM persona, which asks the human targeted follow-up questions to resolve just the flagged issues, then re-drafts — the critic does not present findings directly to the human itself",
+    "cycle_cap": "Hard cap of 4 PM<->critic revision cycles, with a target of resolving within 2-3; if the cap is hit, escalate to the human directly rather than looping further",
+    "final_step": "After the critic is satisfied, the human must give explicit sign-off before the spec is considered final"
+  },
+  "output_handling": {
+    "location": "Path is provided by whoever invokes the loop (e.g. ./docs/project_spec.json for this session) — persona writes there",
+    "versioning": "Prior versions are preserved, not overwritten, when the persona is re-invoked to amend an existing spec (exact file-naming/versioning mechanism left to the architect persona to design)",
+    "audit_trail": "Final spec retains a revision_history section documenting what the critic flagged each round and how it was resolved, not just the clean final answer"
+  },
+  "resumability": {
+    "required_for_v1": false,
+    "note": "If an interview session is interrupted, restarting from scratch is acceptable for v1"
+  },
+  "handoff_to_architect": {
+    "mechanism_for_v1": "Manual — the PM persona writes the final project_spec.json and stops; a human decides when/how to invoke the architect persona next. No automatic triggering in v1.",
+    "future_direction": "Other loop types beyond this initial spec-gathering+critic loop are expected to tie directly into this architecture handoff, but are not designed or scoped now"
+  },
+  "devsecops_requirements": {
+    "spec_content_level": "Every project spec the PM persona produces must include a security_and_risk_considerations field covering: data sensitivity, secrets/credentials handling, threat/abuse considerations, what distinct access levels/roles are needed in plain terms (e.g. admin vs. viewer, internal vs. external users), and whether the target project's infrastructure should be defined as code (IaC) — the PM records these as gathered requirements/preferences, it does not decide the IAM model (roles, policies, federation strategy) or IaC tooling itself. The critic must explicitly verify this field was addressed before approving the spec — not just check it exists as an empty field.",
+    "pm_agent_loop_project_level": "Applies to how pm-agent-loop itself is built/operated, not just spec content: no secrets/API keys ever logged, printed, or committed; dependency and static-security scanning in CI (repo already has ruff configured with bandit rules ('S') and Dependabot enabled — architect should build on/extend these rather than replace them, exact CI security gates left to the architect to design)"
+  },
+  "regulatory_supply_chain_and_finops_requirements": {
+    "rationale": "The architect persona prompt (prompts/02_architecture_definition_prompt.md) produces dedicated Regulatory & Compliance, Supply Chain Security, and FinOps/Cost sections, and resolves ambiguity by asking the human directly one question at a time. Since a stated success criterion is that the architect shouldn't need to go back to the human for basics, the PM persona must gather these upfront rather than leaving them entirely to the architect's own interview.",
+    "requirement": "PM persona must ask the human about known regulatory/compliance constraints, supply chain security expectations, and cost sensitivity during the interview, recording whatever the human states (including 'none' or 'unsure') — the PM does not research compliance regimes or decide tooling itself, it only records stated requirements/preferences."
+  },
+  "non_goals": [
+    "Choosing architecture, frameworks, or tech stack — always deferred to the architect persona",
+    "Writing or editing any source code"
+  ],
+  "success_criteria": [
+    "Primary bar: the architect persona can take a produced project_spec.json and produce a build plan without needing to go back to the human for basic clarifications",
+    "Secondary signal: the human interview itself surfaces considerations they hadn't thought of, without feeling tedious or redundant"
+  ],
+  "priority_ranking": {
+    "must_have_v1": [
+      "Input-type detection (raw idea vs. existing artifact)",
+      "One-at-a-time (with limited trivial batching) checklist-driven interview, including tradeoff-based follow-up on vague answers",
+      "Draft -> distinct Critic review -> PM follow-up loop, capped at 4 cycles (target 2-3)",
+      "Explicit human sign-off before finalization",
+      "Versioned output file with critic revision-history audit trail",
+      "DevSecOps: security_and_risk_considerations required in every produced spec + critic gate enforcing it; pm-agent-loop's own build process avoids logging/committing secrets and uses dependency/static-security scanning (building on existing ruff bandit rules + Dependabot)"
+    ],
+    "later_nice_to_have": [
+      "Support for multiple distinct named loop types (e.g. new-feature spec, bug triage, architecture-change spec) with differently-shaped output",
+      "Automatic handoff/invocation of the architect persona loop",
+      "Resumable/persisted interview sessions across interruptions"
+    ],
+    "sizing": "v1 is a small-to-medium scoped effort: a single Python package, no external services required, confirmed by the user as directionally correct"
+  },
+  "open_questions_for_architect": [
+    "Execution/consumption model is undecided: standalone Python CLI/library, a Claude Code skill/subagent, or both (core engine as a library with a thin CLI + Claude Code integration). User does not have a preference and defers this choice to the architect.",
+    "Exact versioning/file-naming scheme for preserved prior spec versions",
+    "Whether/how the Critic role is implemented as a genuinely distinct persona (e.g. separate prompt/system role) vs. same model with different framing",
+    "Schema/validation mechanism for project_spec.json (issue/PR templates in this repo hint at Pydantic models and an AgentState-style structure, but this is not confirmed as a decision, only a hint from existing repo scaffolding)",
+    "Specific CI security tooling to add beyond the existing ruff bandit ('S') rules and Dependabot (e.g. SAST/secret-scanning tools, SBOM generation) — left to the architect to select",
+    "Quality gates / Definition of Done are generated downstream by the sprint-breakdown persona from the Architecture Definition Document (per prompts/03_agile_sprint_breakdown_prompt.md), not gathered by the PM — architect/sprint-breakdown personas should derive these from testing/CI conventions and whatever tech stack is chosen, not expect them pre-supplied in project_spec.json"
+  ],
+  "revision_history": [
+    {
+      "version": 2,
+      "trigger": "User opened prompts/01_architecture_review_prompt.md (the architect persona prompt), which explicitly calls out secure identity/access management and IaC as review areas not yet reflected in v1 of this spec",
+      "change": "Extended security_and_risk_considerations (checklist field + devsecops_requirements.spec_content_level) to require the PM persona to gather identity/access-control (IAM) needs and infrastructure-as-code preferences as requirements — not as architecture decisions made by the PM itself",
+      "resolved_by": "human confirmation to add these as PM requirements rather than leaving them purely to the architect"
+    },
+    {
+      "version": 3,
+      "trigger": "User opened prompts/02_architecture_definition_prompt.md (the Architect system prompt), revealing it produces Regulatory & Compliance, Supply Chain Security, and FinOps/Cost sections and resolves ambiguity by asking the human directly",
+      "change": "Added regulatory_and_compliance_constraints, supply_chain_security_expectations, and cost_sensitivity to the required checklist; added a corresponding critic check; added top-level regulatory_supply_chain_and_finops_requirements section explaining why",
+      "resolved_by": "human selected all three areas (regulatory/compliance, supply chain security, FinOps/cost) to be added as PM-gathered requirements rather than left to the architect's own interview"
+    },
+    {
+      "version": 4,
+      "trigger": "User opened prompts/03_agile_sprint_breakdown_prompt.md (a downstream sprint-breakdown persona operating on the Architecture Definition Document), which derives a Global Definition of Done including 'project-specific gates derived from the spec'",
+      "change": "Added quality_gates_and_definition_of_done to the required checklist; added a corresponding critic check; added top-level quality_gates_requirements section explaining why",
+      "resolved_by": "human chose to add it as its own checklist field rather than relying on the existing generic acceptance_criteria field"
+    },
+    {
+      "version": 5,
+      "trigger": "Human review caught that v4's quality_gates_and_definition_of_done checklist field was a mistake: prompts/03_agile_sprint_breakdown_prompt.md generates the Global Definition of Done FROM the specification/architecture output itself — it is not something the PM can meaningfully ask the human for, since concrete quality gates (e.g. test types, coverage) depend on architecture/tech-stack decisions that haven't been made yet at PM-interview time",
+      "change": "Reverted the v4 addition: removed quality_gates_and_definition_of_done from required_spec_fields_checklist, removed its critic check, removed the quality_gates_requirements section. Added a note to open_questions_for_architect clarifying that Definition of Done is derived downstream, not PM-gathered.",
+      "resolved_by": "human correction — PM checklist should only include fields the human can actually answer at interview time, not fields whose real answer depends on decisions made in later pipeline stages"
+    },
+    {
+      "version": 6,
+      "trigger": "Human asked whether other v2/v3 additions conflicted with the same graph-order issue as v4/v5's reverted DoD field; review confirmed no other conflicts, but flagged that the IAM checklist wording ('at what level of granularity') edged toward design language rather than a plain requirement",
+      "change": "Reworded the identity/access-control part of security_and_risk_considerations (both the checklist entry and devsecops_requirements.spec_content_level) from 'who/what needs identity or access-control and at what level of granularity' to 'what distinct access levels/roles are needed in plain terms (e.g. admin vs. viewer, internal vs. external users)', and clarified that IAM model/roles/policies/federation strategy remain the architect's decision, not the PM's",
+      "resolved_by": "human requested the reword; no change to scope, wording-only clarification"
+    }
+  ]
+}

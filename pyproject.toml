@@ -55,3 +55,32 @@ exclude_lines = [
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
+
+# Hatch Environment Setup
+[tool.hatch.envs.default]
+dependencies = [
+    "ruff>=0.4.0",
+    "pytest",
+]
+
+[tool.hatch.envs.default.scripts]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+check-all = ["format", "lint"]
+
+# Ruff Configuration
+[tool.ruff]
+line-length = 88
+target-version = "py312" # Bumped to match Python 3.12+
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# S: flake8-bandit (Strict security checks)
+# B: flake8-bugbear (Catches common design flaws)
+select = ["E", "W", "F", "I", "S", "B"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
