@@ -32,4 +32,41 @@ jobs:
         run: hatch run ruff format --check .
 
       - name: Run Test Suite
-        run: hatch run pytest
+        run: hatch run test
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Hatch
+        uses: pypa/hatch@install
+
+      - name: Generate CycloneDX SBOM
+        run: hatch run cyclonedx-py environment --pyproject pyproject.toml -o sbom.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
