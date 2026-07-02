@@ -61,12 +61,15 @@ exclude_lines = [
 dependencies = [
     "ruff>=0.4.0",
     "pytest",
+    "pre-commit>=3.7.0",
+    "cyclonedx-bom>=7.0.0",
 ]
 
 [tool.hatch.envs.default.scripts]
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."
+test = "pytest {args}"
 check-all = ["format", "lint"]
 
 # Ruff Configuration
@@ -80,6 +83,11 @@ src = ["src", "tests"]
 # B: flake8-bugbear (Catches common design flaws)
 select = ["E", "W", "F", "I", "S", "B"]
 ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# S101: `assert` is the idiomatic pytest mechanism for test assertions, not a
+# production safety risk when confined to the test suite.
+"tests/*" = ["S101"]
 
 [tool.ruff.format]
 quote-style = "double"
