@@ -31,15 +31,20 @@ def run_revision_loop(
     initial_spec: ProjectSpec,
     pm_followup_fn: Callable[[list[CriticFinding]], ProjectSpec],
     max_cycles: int = 4,
+    on_review: Callable[[list[CriticFinding]], None] | None = None,
 ) -> ProjectSpec:
     spec = initial_spec
     for _ in range(max_cycles):
         findings = review(spec)
+        if on_review is not None:
+            on_review(findings)
         if not findings:
             return spec
         spec = pm_followup_fn(findings)
 
     findings = review(spec)
+    if on_review is not None:
+        on_review(findings)
     if findings:
         raise RevisionCapReached(spec, findings)
     return spec

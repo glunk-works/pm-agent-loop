@@ -72,6 +72,24 @@ def test_run_override_phrase_stops_interview_and_flags_open_questions(
     assert "functional_requirements" in written["open_questions_for_architect"]
 
 
+def test_run_echoes_critic_clean_pass_confirmation(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli_module, "AnthropicLLMClient", MagicMock())
+
+    output_path = tmp_path / "project_spec.json"
+    stdin = "\n".join([*_CLEAN_ANSWERS, "y"]) + "\n"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_module.app,
+        ["run", "--idea", "test idea", "--output", str(output_path)],
+        input=stdin,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Critic reviewed the draft: no issues found." in result.output
+
+
 def test_run_uses_llm_client_for_critic_revision(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     revised_text = "Marking a habit complete updates its streak count immediately."
