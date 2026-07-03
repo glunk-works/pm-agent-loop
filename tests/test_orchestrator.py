@@ -80,6 +80,38 @@ def test_run_revision_loop_accumulates_token_usage_via_tracker():
     assert tracker.total_output_tokens == 20 + 25 + 5
 
 
+def test_run_revision_loop_invokes_on_review_with_each_cycles_findings():
+    broken_spec = _spec_with_blank_security()
+    resolved_spec = _valid_spec()
+    pm_followup_fn = MagicMock(return_value=resolved_spec)
+    on_review = MagicMock()
+
+    result = run_revision_loop(
+        broken_spec, pm_followup_fn, max_cycles=4, on_review=on_review
+    )
+
+    assert result is resolved_spec
+    assert on_review.call_count == 2
+    first_call_findings = on_review.call_args_list[0].args[0]
+    second_call_findings = on_review.call_args_list[1].args[0]
+    assert first_call_findings  # blank security field is flagged
+    assert second_call_findings == []
+
+
+def test_run_revision_loop_invokes_on_review_once_when_clean_on_first_pass():
+    clean_spec = _valid_spec()
+    pm_followup_fn = MagicMock()
+    on_review = MagicMock()
+
+    result = run_revision_loop(
+        clean_spec, pm_followup_fn, max_cycles=4, on_review=on_review
+    )
+
+    assert result is clean_spec
+    pm_followup_fn.assert_not_called()
+    on_review.assert_called_once_with([])
+
+
 def test_write_spec_skipped_when_signoff_declined():
     prompt_fn = MagicMock(return_value=False)
     write_spec_mock = MagicMock()

@@ -213,6 +213,13 @@ def _resolve_llm_client_cls(provider: str) -> type[LLMClient]:
         raise typer.BadParameter(msg, param_hint="--provider") from None
 
 
+def _on_critic_review(findings: list[CriticFinding]) -> None:
+    if not findings:
+        typer.echo("Critic reviewed the draft: no issues found.")
+    # Findings are echoed individually, per field, inside _make_pm_followup_fn
+    # as each is resolved -- no separate summary needed here.
+
+
 def _validate_and_persist(spec: ProjectSpec, output: Path) -> None:
     validated_spec = ProjectSpec.model_validate(spec.model_dump())
     write_spec(validated_spec, output)
@@ -244,7 +251,9 @@ def run(
             _prefill_from_artifact(state, artifact_path, llm_client_cls, token_tracker)
         _run_interview(state)
         initial_spec = _build_initial_spec(state)
-        final_spec = run_revision_loop(initial_spec, pm_followup_fn)
+        final_spec = run_revision_loop(
+            initial_spec, pm_followup_fn, on_review=_on_critic_review
+        )
     except RevisionCapReached as exc:
         typer.echo("Revision cap reached; escalating to you directly.")
         final_spec = exc.last_spec
